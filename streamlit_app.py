@@ -119,4 +119,4 @@ if st.button("📊 계산하기"):
     ax2.set_xlim(0, df_timeline["출선종료"].max() + 30)
     ax2.grid(True, axis='x', linestyle='--', alpha=0.7)
     st.pyplot(fig2)
-    st.dataframe(df_timeline
+    st.dataframe(df_timeline)
