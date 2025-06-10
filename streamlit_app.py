@@ -16,6 +16,35 @@ if k_diameter > 0:
     st.sidebar.write(f"→ 환산계수 K = {k_result:.5f} ton/min·mm²")
 
 # --- 입력 ---
+st.header("📥 현재 출선 정보 입력")
+current_speed = st.number_input("현재 출선속도 (ton/min)", min_value=0.0, value=8.0)
+current_amount = st.number_input("현재 출선량 (ton)", min_value=0.0, value=1358.0)
+current_time = st.number_input("현재 출선시간 (분)", min_value=0.0, value=160.0)
+
+# --- 현재 K 자동 계산 ---
+calc_K = current_speed / (lead_phi**2) if lead_phi > 0 else 0
+st.write(f"📐 현재 환산계수 K: {calc_K:.5f} ton/min·mm²")
+
+# --- 예측 출선시간 (입력된 출선량 & 비트경 기준) ---
+predicted_speed = calc_K * lead_phi**2
+predicted_time = tap_amount / predicted_speed if predicted_speed > 0 else 0
+
+st.header("🔄 자동 예측 결과")
+st.write(f"예상 출선속도 (현재 K × Φ²): {predicted_speed:.2f} ton/min")
+st.success(f"예상 출선시간: {predicted_time:.1f} 분 (출선량 {tap_amount} ton 기준)")
+
+# --- 추천 비트경 반영 결과 ---
+# 이 부분은 기존 recommend_phi(total_radiation) 활용 가능
+rec_phi = recommend_phi(total_radiation)
+st.markdown(f"✅ **추천 비트경 반영:** {rec_phi}")
+
+# --- 비트경별 출선속도/시간 비교표 ---
+st.header("📊 비트경 별 출선속도 및 예상시간 비교")
+
+for test_phi in [43, 45, 48]:
+    test_speed = calc_K * test_phi**2
+    test_time = tap_amount / test_speed if test_speed > 0 else 0
+    st.write(f"● Φ{test_phi} → 출선속도: {test_speed:.2f} ton/min → 출선시간: {test_time:.1f} 분")
 st.header("출선구 설정")
 lead_phi = st.number_input("선행 출선구 비트경 (Φ, mm)", min_value=30.0, value=45.0, step=1.0)
 follow_phi = st.number_input("후행 출선구 비트경 (Φ, mm)", min_value=30.0, value=45.0, step=1.0)
