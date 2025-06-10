@@ -34,10 +34,15 @@ lead_time_est = tap_amount / lead_speed_est if lead_speed_est > 0 else 0
 follow_time_est = tap_amount / follow_speed_est if follow_speed_est > 0 else 0
 dual_time_est = tap_amount / dual_speed_est if dual_speed_est > 0 else 0
 
+# --- ⑤-1 적정 출선 전략 계산 ---
+ideal_delay_after_lead = max(3.0, (follow_time_est - lead_time_est) / 2) if follow_time_est > lead_time_est else 3.0
+
+# --- ⑤ 결과 출력 ---
 st.header("⑤ 예측 출선시간 결과")
 st.write(f"● 선행 출선속도: {lead_speed_est:.2f} ton/min → 출선시간: {lead_time_est:.1f} 분")
 st.write(f"● 후행 출선속도: {follow_speed_est:.2f} ton/min → 출선시간: {follow_time_est:.1f} 분")
 st.success(f"▶ 2공 동시 출선 예상시간: {dual_time_est:.2f} 분 (출선량 {tap_amount:.0f} ton 기준)")
+st.info(f"⏱ **후행 출선은 선행 출선 종료 후 약 {ideal_delay_after_lead:.1f}분 후 시작하는 것이 적정합니다.**")
 
 # --- ⑥ 비트경별 출선시간 시뮬레이션 ---
 st.header("⑥ Φ 비트경 변화 시 출선시간 예측")
@@ -68,6 +73,16 @@ furnace_lifetime = st.number_input("고로 수명 (년)", min_value=0, value=0, 
 iron_speed = st.number_input("선철 생성속도 (ton/min)", value=9.0)
 slag_ratio = st.number_input("출선비 (용선:슬래그)", value=2.25)
 
+# --- ⑦-1 고로 세부 조업지표 입력 ---
+st.header("⑦-1 고로 세부 조업지표 입력")
+planned_charge = st.number_input("계획 Charge 수 (회/일)", value=130)
+current_charge = st.number_input("현재 Charge 수 (회)", value=60)
+pcr = st.number_input("PCR (kg/ton)", value=150)
+reduction_ratio = st.number_input("환원도 R.R (FeO/Fe)", value=0.85)
+carbon_rate = st.number_input("C.R (kgC/ton)", value=480)
+iron_output_rate = st.number_input("용선 생산속도 (ton/min)", value=9.0)
+total_output_rate = st.number_input("슬래그 포함 생산속도 (ton/min)", value=11.2)
+
 # --- ⑧ 자동 계산 결과 ---
 daily_ore = ore_charge * daily_charge
 daily_coke = coke_charge * daily_charge
@@ -81,7 +96,7 @@ st.markdown(f"📊 **Ore/Coke 비율**: {ore_coke_ratio:.2f}")
 st.markdown(f"📊 **시간당 Charge 수**: {hourly_charge:.2f} 회/hr")
 st.markdown(f"📊 **하루 출선량**: {daily_iron:.0f} ton")
 st.markdown(f"📊 **슬래그량 추정**: {daily_slag:.0f} ton")
-st.markdown(f"📊 **총 저선량 예측**: {total_radiation:.1f} ton/day")
+st.markdown(f"📊 **현재 노내 저선량 예측**: {total_radiation:.1f} ton/day")
 
 # --- ⑨ 장입 + 환원제비 기반 출선 예측 ---
 st.header("⑨ 장입 + 환원제비 기반 출선 예측")
@@ -97,14 +112,27 @@ def estimate_recovery_rate(ratio):
         return 0.83
 
 recovery_rate = estimate_recovery_rate(ore_coke_ratio)
+# 환원도 반영 보정
+if reduction_ratio > 0:
+    recovery_rate *= (1 + (1 - reduction_ratio))
+
 estimated_iron = ore_charge * recovery_rate
 predicted_speed = calc_K_lead * lead_phi ** 2
 predicted_tap_time = estimated_iron / predicted_speed if predicted_speed > 0 else 0
+
+# 누적 생산량 및 잔류량
+real_time_iron = iron_output_rate * current_charge * (ore_charge / planned_charge)
+real_time_slag = real_time_iron / slag_ratio if slag_ratio else 0
+real_time_total_output = real_time_iron + real_time_slag
+real_time_residual = real_time_total_output * 0.05
 
 st.markdown(f"🧮 ORE/COKE 비율: **{ore_coke_ratio:.2f}**")
 st.markdown(f"📈 회수율 추정: **{recovery_rate*100:.1f}%**")
 st.markdown(f"📦 예상 출선량: **{estimated_iron:.1f} ton**")
 st.markdown(f"⏱ 예상 출선시간(선행 기준): **{predicted_tap_time:.1f} 분**")
+st.markdown(f"📦 누적 용선 생산량(현재 Charge 기준): **{real_time_iron:.1f} ton**")
+st.markdown(f"📦 누적 슬래그 포함 생산량: **{real_time_total_output:.1f} ton**")
+st.markdown(f"📦 현재 노내 잔류량(5%): **{real_time_residual:.1f} ton**")
 
 # --- 추천 비트경 ---
 def recommend_phi(radiation):
